@@ -26,7 +26,7 @@ export default function Home() {
     const newItem = {
       id: newId, name, sourceImage: base64Image, renderedImage: undefined, timestamp: Date.now()
     }
-    let saved;
+    let saved: DesignItem | null | undefined;
     try {
       saved = await createProject({ item: newItem, visibility: 'private' });
     } catch (err) {
