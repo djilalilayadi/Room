@@ -30,23 +30,23 @@ export const getCurrentUser = async () => {
 }
 
 export const createProject = async ({ item }: CreateProjectParams): Promise<DesignItem | null | undefined> => {
-    const porjectId = item.id;
+    const projectId = item.id;
 
     const hosting = await getOrCreateHostingConfig();
 
-    const hostedSource = porjectId ?
+    const hostedSource = projectId ?
         await uploadImageToHosting({
             hosting,
             url: item.sourceImage,
-            projectId: porjectId,
+            projectId: projectId,
             label: 'source'
         }) : null;
 
-    const hostedRendered = porjectId && item.renderedImage ?
+    const hostedRendered = projectId && item.renderedImage ?
         await uploadImageToHosting({
             hosting,
             url: item.renderedImage,
-            projectId: porjectId,
+            projectId: projectId,
             label: 'rendered'
         }) : null;
 
