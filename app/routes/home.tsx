@@ -1,7 +1,12 @@
+
 import type { Route } from "./+types/home";
 import Navbar from "../../components/Navbar";
-import { ArrowRightIcon, Clock, Layers, Layers2 } from "lucide-react";
+import { ArrowRightIcon, Clock } from "lucide-react";
 import { Button } from "components/ui/Button";
+import Upload from "../../components/Upload";
+import { useNavigate } from "react-router";
+import { useState } from "react";
+import { createProject } from "lib/puter.action";
 
 export function meta({ }: Route.MetaArgs) {
   return [
@@ -11,6 +16,37 @@ export function meta({ }: Route.MetaArgs) {
 }
 
 export default function Home() {
+  const navigate = useNavigate();
+
+  const [projects, setProjects] = useState<DesignItem[]>([]);
+
+  const handleUploadcomplete = async (base64Image: string) => {
+    const newId = Date.now().toString();
+    const name = `Residence ${newId}`;
+    const newItem = {
+      id: newId, name, sourceImage: base64Image, renderedImage: undefined, timestamp: Date.now()
+    }
+
+    const saved = await createProject({ item: newItem, visibility: 'private' });
+
+    if (!saved) {
+      console.error("failed to create project ");
+      return false;
+    }
+
+    setProjects((prev) => [newItem, ...prev]);
+
+
+
+    navigate(`/visualizer/${newId}`, {
+      state: {
+        initialImage: saved.sourceImage,
+        initialRender: saved.renderedImage || null,
+        name
+      }
+    });
+  }
+
   return (
     <div className="home">
       <Navbar />
@@ -30,20 +66,12 @@ export default function Home() {
         </div>
         <div id="upload" className="upload-shell">
           <div className="grid-overlay" />
-          <div className="upload-card">
-            <div className="upload-head">
-              <div className="upload-icon">
-                <Layers className="icon"></Layers>
-              </div>
-              <h3>Upload your floor plan</h3>
-              <p>suport JPG, PNG, formats up to 10MB</p>
-            </div>
-            <p>Upload images</p>
-          </div>
-
+          <Upload onComplete={handleUploadcomplete} />
         </div>
 
-      </section>
+
+
+      </section >
       <section className="projects">
         <div className="section-inner">
           <div className="section-head">
@@ -53,30 +81,32 @@ export default function Home() {
             </div>
           </div>
           <div className="projects-grid">
-            <div className="project-card group">
-              <div className="preview">
-                <img src="https://roomify-mlhuk267-dfwu1i.puter.site/projects/1770803585402/rendered.png" alt="Project" />
-                <div className="badge">
-                  <span>Community</span>
-                </div>
-              </div>
-              <div className="card-body">
-                <div>
-                  <h3>Project Manhattan</h3>
-                  <div className="meta">
-                    <Clock size={16} />
-                    <span>{new Date("2026-01-01").toLocaleDateString()}</span>
-                    <span>by John</span>
+            {projects.map(({ id, name, renderedImage, sourceImage, timestamp }) => (
+              <div className="project-card group">
+                <div className="preview">
+                  <img src={renderedImage || sourceImage} alt="Project" />
+                  <div className="badge">
+                    <span>Community</span>
                   </div>
                 </div>
-                <div className="arrow">
-                  <ArrowRightIcon size={18} />
+                <div className="card-body">
+                  <div>
+                    <h3>{name}</h3>
+                    <div className="meta">
+                      <Clock size={16} />
+                      <span>{new Date(timestamp).toLocaleDateString()}</span>
+                      <span>by John</span>
+                    </div>
+                  </div>
+                  <div className="arrow">
+                    <ArrowRightIcon size={18} />
+                  </div>
                 </div>
               </div>
-            </div>
+            ))}
           </div>
         </div>
       </section>
-    </div>
+    </div >
   );
 }
