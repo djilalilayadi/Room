@@ -480,6 +480,22 @@
               @apply text-zinc-500 text-sm mt-1;
             }
           }
+
+          .auth-overlay {
+            @apply absolute inset-0 z-20 flex flex-col items-center justify-center gap-3 bg-white/80 backdrop-blur-sm rounded-2xl;
+
+            p {
+              @apply text-sm font-medium text-zinc-600;
+            }
+
+            .sign-in-btn {
+              @apply px-6 py-2 text-sm font-bold uppercase tracking-wide bg-primary text-white rounded-md hover:bg-[#ea580c] transition-all duration-200 shadow-sm cursor-pointer;
+            }
+          }
+
+          .error-message {
+            @apply flex items-center gap-2 text-red-500 text-sm mt-2 justify-center;
+          }
         }
       }
     }

@@ -31,22 +31,16 @@ export default function Home() {
       saved = await createProject({ item: newItem, visibility: 'private' });
     } catch (err) {
       console.error("failed to create project", err);
-      return;
     }
 
-    if (!saved) {
-      console.error("failed to create project ");
-      return false;
-    }
+    const projectData = saved || newItem;
 
-    setProjects((prev) => [saved, ...prev]);
-
-
+    setProjects((prev) => [projectData, ...prev]);
 
     navigate(`/visualizer/${newId}`, {
       state: {
-        initialImage: saved.sourceImage,
-        initialRender: saved.renderedImage || null,
+        initialImage: projectData.sourceImage,
+        initialRender: projectData.renderedImage || null,
         name
       }
     });

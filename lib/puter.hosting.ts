@@ -1,12 +1,6 @@
-let _puter: any = null;
-const getPuter = async () => {
-    if (!_puter) {
-        const mod = await import("@heyputer/puter.js");
-        _puter = mod.default || mod;
-    }
-    return _puter;
-};
+import { getPuter } from "./puter";
 import { createHostingSlug, HOSTING_CONFIG_KEY, imageUrlToPngBlob, isHostedUrl } from "./utils";
+
 import { getHostedUrl } from "./utils";
 import { getImageExtension } from "./utils";
 import { fetchBlobFromUrl } from "./utils";

@@ -1,14 +1,8 @@
 import { getOrCreateHostingConfig, uploadImageToHosting } from "./puter.hosting";
 import { isHostedUrl } from "./utils";
+import { getPuter } from "./puter";
 
-let _puter: any = null;
-const getPuter = async () => {
-    if (!_puter) {
-        const mod = await import("@heyputer/puter.js");
-        _puter = mod.default || mod;
-    }
-    return _puter;
-};
+
 
 export const signIn = async () => {
     const puter = await getPuter();

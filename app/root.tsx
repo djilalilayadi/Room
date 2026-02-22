@@ -11,7 +11,8 @@ import type { Route } from "./+types/root";
 import "./app.css";
 import { useEffect, useState } from "react";
 
-import { getCurrentUser, signIn as puterSignIn, signOut as puterSignOut } from "puter.action";
+import { getCurrentUser, signIn as puterSignIn, signOut as puterSignOut } from "lib/puter.action";
+
 
 export const links: Route.LinksFunction = () => [
   { rel: "preconnect", href: "https://fonts.googleapis.com" },

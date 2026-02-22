@@ -1,7 +1,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import { useOutletContext } from "react-router";
-import { Layers, Upload as UploadIcon, AlertCircle } from "lucide-react";
+import { Layers, Upload as UploadIcon, AlertCircle, LogIn } from "lucide-react";
 import { REDIRECT_DELAY_MS } from "../lib/constants";
 import { cn } from "../lib/utils"; // Assuming utils has cn or I should check. Wait, utils.ts didn't have cn. I'll mock it or just use template literals.
 
@@ -11,7 +11,7 @@ interface UploadProps {
 }
 
 export default function Upload({ onComplete }: UploadProps) {
-    const { isSignedIn } = useOutletContext<AuthContext>();
+    const { isSignedIn, signIn } = useOutletContext<AuthContext>();
     const [isDragging, setIsDragging] = useState(false);
     const [progress, setProgress] = useState(0);
     const [error, setError] = useState<string | null>(null);
@@ -143,7 +143,17 @@ export default function Upload({ onComplete }: UploadProps) {
 
             {!isSignedIn && (
                 <div className="auth-overlay">
-                    <p>Please sign in to upload</p>
+                    <LogIn size={20} />
+                    <p>Sign in to start uploading</p>
+                    <button
+                        className="sign-in-btn"
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            signIn();
+                        }}
+                    >
+                        Sign in
+                    </button>
                 </div>
             )}
         </div>
