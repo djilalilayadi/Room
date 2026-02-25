@@ -1,7 +1,12 @@
+
 import type { Route } from "./+types/home";
 import Navbar from "../../components/Navbar";
-import { ArrowRightIcon, Clock, Layers, Layers2 } from "lucide-react";
+import { ArrowRightIcon, Clock } from "lucide-react";
 import { Button } from "components/ui/Button";
+import Upload from "../../components/Upload";
+import { useNavigate } from "react-router";
+import { useState, useRef, useEffect } from "react";
+import { createProject, getProject } from "lib/puter.action";
 
 export function meta({ }: Route.MetaArgs) {
   return [
@@ -11,6 +16,67 @@ export function meta({ }: Route.MetaArgs) {
 }
 
 export default function Home() {
+  const navigate = useNavigate();
+  const [projects, setProjects] = useState<DesignItem[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function fetchProjects() {
+      try {
+        console.log("Home: Fetching projects...");
+        const data = await getProject("");
+        console.log("Home: Projects received:", data);
+        setProjects(data || []);
+      } catch (err) {
+        console.error("Home: Failed to fetch projects", err);
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchProjects();
+  }, []);
+
+  const isCreatingprojectRef = useRef(false);
+
+  const handleUploadcomplete = async (base64Image: string) => {
+    try {
+      if (isCreatingprojectRef.current) return;
+      isCreatingprojectRef.current = true;
+
+      const newId = Date.now().toString();
+      const name = `Residence ${newId}`;
+      const newItem: DesignItem = {
+        id: newId,
+        name,
+        sourceImage: base64Image,
+        timestamp: Date.now()
+      }
+      let saved: DesignItem | null | undefined;
+      try {
+        console.log("Home: Creating project...");
+        saved = await createProject({ item: newItem, visibility: 'private' });
+      } catch (err) {
+        console.error("Home: failed to create project", err);
+      }
+
+      const projectData = saved || newItem;
+
+      setProjects((prev: DesignItem[]) => [projectData, ...prev]);
+
+      navigate(`/visualizer/${newId}`, {
+        state: {
+          initialImage: projectData.sourceImage,
+          initialRender: projectData.renderedImage || null,
+          name
+        }
+      });
+    }
+    finally {
+      isCreatingprojectRef.current = false;
+    }
+
+  }
+
   return (
     <div className="home">
       <Navbar />
@@ -30,20 +96,12 @@ export default function Home() {
         </div>
         <div id="upload" className="upload-shell">
           <div className="grid-overlay" />
-          <div className="upload-card">
-            <div className="upload-head">
-              <div className="upload-icon">
-                <Layers className="icon"></Layers>
-              </div>
-              <h3>Upload your floor plan</h3>
-              <p>suport JPG, PNG, formats up to 10MB</p>
-            </div>
-            <p>Upload images</p>
-          </div>
-
+          <Upload onComplete={handleUploadcomplete} />
         </div>
 
-      </section>
+
+
+      </section >
       <section className="projects">
         <div className="section-inner">
           <div className="section-head">
@@ -53,30 +111,40 @@ export default function Home() {
             </div>
           </div>
           <div className="projects-grid">
-            <div className="project-card group">
-              <div className="preview">
-                <img src="https://roomify-mlhuk267-dfwu1i.puter.site/projects/1770803585402/rendered.png" alt="Project" />
-                <div className="badge">
-                  <span>Community</span>
-                </div>
+            {loading ? (
+              <div className="col-span-full py-20 text-center text-muted-foreground">
+                Loading your projects...
               </div>
-              <div className="card-body">
-                <div>
-                  <h3>Project Manhattan</h3>
-                  <div className="meta">
-                    <Clock size={16} />
-                    <span>{new Date("2026-01-01").toLocaleDateString()}</span>
-                    <span>by John</span>
+            ) : projects.length === 0 ? (
+              <div className="col-span-full py-20 text-center text-muted-foreground">
+                No projects found. Start building to see them here!
+              </div>
+            ) : projects.map(({ id, name, renderedImage, sourceImage, timestamp }: DesignItem) => (
+              <div key={id} className="project-card group" onClick={() => navigate(`/visualizer/${id}`)} style={{ cursor: 'pointer' }}>
+                <div className="preview">
+                  <img src={renderedImage || sourceImage} alt="Project" />
+                  <div className="badge">
+                    <span>Community</span>
                   </div>
                 </div>
-                <div className="arrow">
-                  <ArrowRightIcon size={18} />
+                <div className="card-body">
+                  <div>
+                    <h3>{name}</h3>
+                    <div className="meta">
+                      <Clock size={16} />
+                      <span>{timestamp ? new Date(timestamp).toLocaleDateString() : 'Recent'}</span>
+                      <span>by You</span>
+                    </div>
+                  </div>
+                  <div className="arrow">
+                    <ArrowRightIcon size={18} />
+                  </div>
                 </div>
               </div>
-            </div>
+            ))}
           </div>
         </div>
       </section>
-    </div>
+    </div >
   );
 }
