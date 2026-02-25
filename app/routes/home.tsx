@@ -5,8 +5,8 @@ import { ArrowRightIcon, Clock } from "lucide-react";
 import { Button } from "components/ui/Button";
 import Upload from "../../components/Upload";
 import { useNavigate } from "react-router";
-import { useState } from "react";
-import { createProject } from "lib/puter.action";
+import { useState, useRef, useEffect } from "react";
+import { createProject, getProject } from "lib/puter.action";
 
 export function meta({ }: Route.MetaArgs) {
   return [
@@ -17,33 +17,64 @@ export function meta({ }: Route.MetaArgs) {
 
 export default function Home() {
   const navigate = useNavigate();
-
   const [projects, setProjects] = useState<DesignItem[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function fetchProjects() {
+      try {
+        console.log("Home: Fetching projects...");
+        const data = await getProject("");
+        console.log("Home: Projects received:", data);
+        setProjects(data || []);
+      } catch (err) {
+        console.error("Home: Failed to fetch projects", err);
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchProjects();
+  }, []);
+
+  const isCreatingprojectRef = useRef(false);
 
   const handleUploadcomplete = async (base64Image: string) => {
-    const newId = Date.now().toString();
-    const name = `Residence ${newId}`;
-    const newItem = {
-      id: newId, name, sourceImage: base64Image, renderedImage: undefined, timestamp: Date.now()
-    }
-    let saved: DesignItem | null | undefined;
     try {
-      saved = await createProject({ item: newItem, visibility: 'private' });
-    } catch (err) {
-      console.error("failed to create project", err);
+      if (isCreatingprojectRef.current) return;
+      isCreatingprojectRef.current = true;
+
+      const newId = Date.now().toString();
+      const name = `Residence ${newId}`;
+      const newItem: DesignItem = {
+        id: newId,
+        name,
+        sourceImage: base64Image,
+        timestamp: Date.now()
+      }
+      let saved: DesignItem | null | undefined;
+      try {
+        console.log("Home: Creating project...");
+        saved = await createProject({ item: newItem, visibility: 'private' });
+      } catch (err) {
+        console.error("Home: failed to create project", err);
+      }
+
+      const projectData = saved || newItem;
+
+      setProjects((prev: DesignItem[]) => [projectData, ...prev]);
+
+      navigate(`/visualizer/${newId}`, {
+        state: {
+          initialImage: projectData.sourceImage,
+          initialRender: projectData.renderedImage || null,
+          name
+        }
+      });
+    }
+    finally {
+      isCreatingprojectRef.current = false;
     }
 
-    const projectData = saved || newItem;
-
-    setProjects((prev) => [projectData, ...prev]);
-
-    navigate(`/visualizer/${newId}`, {
-      state: {
-        initialImage: projectData.sourceImage,
-        initialRender: projectData.renderedImage || null,
-        name
-      }
-    });
   }
 
   return (
@@ -80,8 +111,16 @@ export default function Home() {
             </div>
           </div>
           <div className="projects-grid">
-            {projects.map(({ id, name, renderedImage, sourceImage, timestamp }) => (
-              <div key={id} className="project-card group">
+            {loading ? (
+              <div className="col-span-full py-20 text-center text-muted-foreground">
+                Loading your projects...
+              </div>
+            ) : projects.length === 0 ? (
+              <div className="col-span-full py-20 text-center text-muted-foreground">
+                No projects found. Start building to see them here!
+              </div>
+            ) : projects.map(({ id, name, renderedImage, sourceImage, timestamp }: DesignItem) => (
+              <div key={id} className="project-card group" onClick={() => navigate(`/visualizer/${id}`)} style={{ cursor: 'pointer' }}>
                 <div className="preview">
                   <img src={renderedImage || sourceImage} alt="Project" />
                   <div className="badge">
@@ -93,8 +132,8 @@ export default function Home() {
                     <h3>{name}</h3>
                     <div className="meta">
                       <Clock size={16} />
-                      <span>{new Date(timestamp).toLocaleDateString()}</span>
-                      <span>by John</span>
+                      <span>{timestamp ? new Date(timestamp).toLocaleDateString() : 'Recent'}</span>
+                      <span>by You</span>
                     </div>
                   </div>
                   <div className="arrow">

@@ -2,25 +2,46 @@ import { Button } from "components/ui/Button";
 import { generat3DView } from "lib/ai.action";
 import { Box, Download, RefreshCcw, Share2, X } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
-import { useLocation, useNavigate } from "react-router";
+import { useLocation, useNavigate, useParams, useOutletContext } from "react-router";
+import { getProjectById, updateProject } from "lib/puter.action";
 
-const visualizerId = () => {
-
+const VisualizerId = () => {
+    const { id } = useParams();
     const navigate = useNavigate();
     const location = useLocation();
-    const { initialImage, initialRender, name } = location.state || {};
+    const { userId } = useOutletContext<AuthContext>();
+
+    const { initialImage, initialRender, name: initialName } = (location.state as VisualizerLocationState) || {};
+
+    const [project, setProject] = useState<DesignItem | null>(null);
+    const [isProjectLoading, setIsProjectLoading] = useState(!initialImage);
+    const [processing, setProcessing] = useState(false);
+    const [currentImage, setCurrentImage] = useState<string | null>(initialRender || null);
 
     const haseInitialGenerated = useRef(false);
-    const [processing, setProcessing] = useState(false);
-    const [currentImage, setCurrentImage] = useState(initialRender || null);
+
     const handleBack = () => navigate('/');
-    const runGeneration = async () => {
-        if (!initialImage) return;
+
+    const runGeneration = async (sourceUrl: string) => {
+        if (!sourceUrl) return;
         try {
             setProcessing(true);
-            const result = await generat3DView({ sourceImage: initialImage });
+            const result = await generat3DView({ sourceImage: sourceUrl });
             if (result.renderImage) {
                 setCurrentImage(result.renderImage);
+                // Update project in background
+                if (id) {
+                    await updateProject({
+                        item: {
+                            ...(project || {
+                                id: id,
+                                sourceImage: sourceUrl,
+                                timestamp: Date.now()
+                            }),
+                            renderedImage: result.renderImage
+                        }
+                    });
+                }
             }
         } catch (err) {
             console.error('Error generating 3D view:', err);
@@ -29,26 +50,63 @@ const visualizerId = () => {
         }
     }
 
+    // Load project if not in state
     useEffect(() => {
-        if (!initialImage || haseInitialGenerated.current) return
+        async function fetchProject() {
+            if (!id || initialImage) return;
 
-        if (initialRender) {
-            setCurrentImage(initialRender);
+            setIsProjectLoading(true);
+            try {
+                const data = await getProjectById({ id });
+                if (data) {
+                    setProject(data);
+                    if (data.renderedImage) {
+                        setCurrentImage(data.renderedImage);
+                    }
+                }
+            } catch (err) {
+                console.error("Failed to fetch project", err);
+            } finally {
+                setIsProjectLoading(false);
+            }
+        }
+        fetchProject();
+    }, [id, initialImage]);
+
+    useEffect(() => {
+        const source = initialImage || project?.sourceImage;
+        const render = initialRender || project?.renderedImage;
+
+        if (!source || haseInitialGenerated.current) return;
+
+        if (render) {
+            setCurrentImage(render);
             haseInitialGenerated.current = true;
             return;
         }
+
         haseInitialGenerated.current = true;
-        runGeneration();
+        runGeneration(source);
 
-    }, [initialImage, initialRender]);
+    }, [initialImage, project, initialRender]);
 
+
+    if (isProjectLoading) {
+        return (
+            <div className="visualizer flex items-center justify-center h-screen">
+                <RefreshCcw className="animate-spin h-8 w-8 text-primary" />
+            </div>
+        );
+    }
+
+    const displayName = initialName || project?.name || 'Untitled Project';
+    const activeSourceImage = initialImage || project?.sourceImage;
 
     return (
         <div className="visualizer">
             <nav className="topbar">
                 <div className="brand">
                     <Box className="logo" />
-
                     <span className="name">Room</span>
                 </div>
                 <Button variant="ghost" size="sm" onClick={handleBack} className="exit" >
@@ -61,15 +119,21 @@ const visualizerId = () => {
                     <div className="panel-header">
                         <div className="panel-meta">
                             <p>Project</p>
-                            <h2>{name || 'Untitled Project'}</h2>
-
-                            <p className="note">Created by you</p>
+                            <h2>{displayName}</h2>
+                            <p className="note">{project?.ownerId === userId ? 'Created by you' : 'Shared with you'}</p>
                         </div>
                         <div className="panel-action">
                             <Button
                                 size="sm"
                                 className="export"
-                                onClick={() => { }}
+                                onClick={() => {
+                                    if (currentImage) {
+                                        const link = document.createElement('a');
+                                        link.href = currentImage;
+                                        link.download = `${displayName.replace(/\s+/g, '_')}_render.png`;
+                                        link.click();
+                                    }
+                                }}
                                 disabled={!currentImage}
                             >
                                 <Download className="w-4 h-4 mr-2" />
@@ -78,7 +142,12 @@ const visualizerId = () => {
                             <Button
                                 size="sm"
                                 className="share"
-                                onClick={() => { }}
+                                onClick={() => {
+                                    if (currentImage) {
+                                        navigator.clipboard.writeText(window.location.href);
+                                        alert("Link copied to clipboard!");
+                                    }
+                                }}
                             >
                                 <Share2 className="w-4 h-4 mr-2" />
                                 Share
@@ -89,13 +158,12 @@ const visualizerId = () => {
 
                     <div className={`render-area ${processing ? 'is-processing' : ''}`}>
                         {currentImage ? (
-
-                            <img src={currentImage} alt="AI render" className="render-img" />) : (
+                            <img src={currentImage} alt="AI render" className="render-img" />
+                        ) : (
                             <div className="render-placeholder">
-                                {initialImage && (
-                                    <img src={initialImage} alt="Original" className="render-fallback" />
+                                {activeSourceImage && (
+                                    <img src={activeSourceImage} alt="Original" className="render-fallback" />
                                 )}
-
                             </div>
                         )}
                         {processing && (
@@ -103,17 +171,15 @@ const visualizerId = () => {
                                 <div className="rendering-card">
                                     <RefreshCcw className="spinner" />
                                     <span className="title">Generating 3D view</span>
-                                    <span className="subtitle">Generating ...</span>
+                                    <span className="subtitle">Please wait ...</span>
                                 </div>
                             </div>
                         )}
                     </div>
                 </div>
             </section>
-
         </div>
-
     );
 }
 
-export default visualizerId;
+export default VisualizerId;
